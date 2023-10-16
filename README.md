@@ -1,6 +1,6 @@
 ## PixiJs-Sprite-Cutter
 
-The sole function of this utility is to take a collection of sprite sheets, help you pick and choose the sprites to be used together as part of an animation then pack them together into a single sprite sheet / PixiJs texture json file.
+The sole function of this utility is to take a collection of sprite sheets, help you pick and choose the sprites to be used together as part of an animation then pack them together into a single sprite sheet & PixiJs texture json file.
 
 This is a super quick and unpolished all be it very useful utility I put together for [Cloud Rec Room](https://cloudrecroom.com/). I didn't want to wrangle with another sprite cutter tool to assemble the sprite sheets exactly how I needed them for use in PixiJs, and god forbid I try to do the job manually. If there is any interest in the project I would consider cleaning it up / adding features.
 
