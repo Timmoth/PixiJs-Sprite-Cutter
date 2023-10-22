@@ -24,40 +24,25 @@ Once you've created your config file run
       {
          "file":"./character1.png",
          "file-id":"d1",
-         "sprite-size":{
-            "w":24,
-            "h":24
-         },
-         "sprite-sheet-size":{
-            "w":576,
-            "h":24
-         }
       },
       {
          "file":"./character2.png",
          "file-id":"d2",
-         "sprite-size":{
-            "w":24,
-            "h":24
-         },
-         "sprite-sheet-size":{
-            "w":576,
-            "h":24
-         }
       }
    ],
    "animation":[
       {
          "name":"d1-idle",
          "sprites":[
-            "d1-0-0-1-4"
+            "d1-all"
          ]
       },
       {
          "name":"d1-walk",
          "sprites":[
             "d1-0-4-1-6",
-            "d2-1-4-1-2"
+            "d2-1-4-1-2",
+            "d2-0-4",
          ]
       },
    ]
@@ -76,8 +61,6 @@ Once you've created your config file run
       {
          "file": // The relative path to the source sprite sheet
          "file-id": // A unique prefix for sprites from this sheet (keep this short to reduce file size)
-         "sprite-size": // The size of the sprites in this sheet
-         "sprite-sheet-size": // The resolution of the sprite sheet
       }
    ],
    "animation":[
@@ -90,8 +73,20 @@ Once you've created your config file run
 ```
 
 ##### Sprite selection syntax
-The syntax for selecting sprites from an input sprite sheet to be used as the frames in an animation follows this format:
+The syntax for selecting sprites from an input sprite sheet to be used as the frames in an animation follows three formats:
 
+###### All
+`[fileId]-all`
+[fileId] - select the input sprite sheet
+all - use all the sprites from the selected sprite sheet
+
+###### Single
+`[fileId]-[row]-[col]`
+[fileId] - select the input sprite sheet
+[row] - the row of the specific sprite 
+[col] - the column of the specific sprite 
+
+###### Region
 `[fileId]-[row]-[col]-[rowspan]-[colspan]`
 [fileId] - select the input sprite sheet
 [row] - the row the animation sprites start at
