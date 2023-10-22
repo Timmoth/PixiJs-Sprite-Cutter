@@ -77,28 +77,40 @@ The syntax for selecting sprites from an input sprite sheet to be used as the fr
 
 ###### All
 `[fileId]-all`
+
 [fileId] - select the input sprite sheet
+
 all - use all the sprites from the selected sprite sheet
 
 ###### Single
 `[fileId]-[row]-[col]`
+
 [fileId] - select the input sprite sheet
+
 [row] - the row of the specific sprite 
+
 [col] - the column of the specific sprite 
 
 ###### Region
 `[fileId]-[row]-[col]-[rowspan]-[colspan]`
+
 [fileId] - select the input sprite sheet
+
 [row] - the row the animation sprites start at
+
 [col] - the column the animation sprites start at
+
 [rowspan] - how many rows of sprites should be used
+
 [colspan] - how many columns of sprites should be used
 
 This way it is easy to define entire blocks of sprites from an input sprite sheet to be used in an animation. Keep in mind you can specify multiple sprite selectors that pull sprites from different sheets to be used in the same animation E.G
 ```
 "sprites":[
             "d1-0-4-1-6",
-            "d2-1-4-1-2"
+            "d2-1-4-1-2",
+            "d2-1-4",
+            "d2-all"
          ]
 ```
 
