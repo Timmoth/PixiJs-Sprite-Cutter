@@ -1,8 +1,4 @@
-﻿using System.Diagnostics.Metrics;
-using System.Drawing;
-using System.Drawing.Imaging;
-
-public abstract class SpriteSelection
+﻿public abstract class SpriteSelection
 {
     public required string Selector { get; set; }
     public required string FileId { get; set; }
