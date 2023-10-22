@@ -1,6 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 
-public class Rect
+public record Rect
 {
     [JsonPropertyName("x")]
     public required int X { get; set; }

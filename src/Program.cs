@@ -22,7 +22,13 @@ if (!File.Exists(configFileName))
 
 Console.WriteLine($"reading '{configFileName}'");
 var configJsonString = File.ReadAllText(configFileName);
-var config = JsonSerializer.Deserialize<Config>(configJsonString);
+
+var deserializerOptions = new JsonSerializerOptions()
+{
+    AllowTrailingCommas = true
+};
+
+var config = JsonSerializer.Deserialize<Config>(configJsonString, deserializerOptions);
 
 if (config == null)
 {
@@ -35,13 +41,21 @@ var pixiJsSpriteSheet = PixiJsSpriteSheet.From(config);
 
 Console.WriteLine("loading input sprite sheets");
 // Load all input sprite sheets
-var inputSpriteSheetCollection = new Dictionary<string, (InputFile InputFile, MagickImage Image)>();
+var inputSpriteSheetCollection = new Dictionary<string, InputFile>();
 foreach (var inputFile in config.Files)
 {
     try
     {
+        if (inputFile.FileId.Contains("-"))
+        {
+            Console.Error.WriteLine($"can not use '-' in input file id '{inputFile.FileId}' - '{inputFile.File}'");
+            Environment.ExitCode = -1;
+            return;
+        }
+
         var image = new MagickImage(inputFile.File);
-        inputSpriteSheetCollection.Add(inputFile.FileId, (inputFile, image));
+        inputFile.Image = image;
+        inputSpriteSheetCollection.Add(inputFile.FileId, inputFile);
     }
     catch 
     {
@@ -61,54 +75,39 @@ foreach (var inputDataAnimation in config.Animations)
     {
         var spriteSelection = SpriteSelection.From(spriteSelector);
 
-        if (!inputSpriteSheetCollection.TryGetValue(spriteSelection.FileId, out var input))
+        if (!inputSpriteSheetCollection.TryGetValue(spriteSelection.FileId, out var inputFile))
         {
             Console.Error.WriteLine($"error, could not find input file with FileId '{spriteSelection.FileId}' when processing animation '{inputDataAnimation.Name}'");
             Environment.ExitCode = -1;
             return;
         }
 
-        var (inputFile, _) = input;
-
-        // Split the sprite sheet and rearrange the sprites
-        for (var row = spriteSelection.Row; row < spriteSelection.Row + spriteSelection.RowSpan; row++)
+        var regions = spriteSelection.GetReferencedSprites(config.SpriteSize, inputFile);
+        foreach (var region in regions)
         {
-            for (var col = spriteSelection.Col; col < spriteSelection.Col + spriteSelection.ColSpan; col++)
+            var spriteId = $"{inputFile.FileId}-{region.X}-{region.Y}-{config.SpriteSize.W}-{config.SpriteSize.H}";
+            if (!referencedSprites.TryGetValue(spriteId, out var referencedSprite))
             {
-                var x = col * config.SpriteSize.W;
-                var y = row * config.SpriteSize.H;
-                var spriteId = $"{inputFile.FileId}-{x}-{y}-{config.SpriteSize.W}-{config.SpriteSize.H}";
-
-                if (!referencedSprites.TryGetValue(spriteId, out var referencedSprite))
+                if (inputFileSpriteCounts.TryGetValue(inputFile.FileId, out var count))
                 {
-                    if (inputFileSpriteCounts.TryGetValue(inputFile.FileId, out var count))
-                    {
-                        count++;
-                    }
-                    else
-                    {
-                        count = 0;
-                    }
-                    inputFileSpriteCounts[inputFile.FileId] = count;
-
-                    referencedSprite = new ReferencedSprite()
-                    {
-                        FileSpriteIndex = count,
-                        SpriteId = spriteId,
-                        FileId = inputFile.FileId,
-                        Rect = new Rect()
-                        {
-                            X = x,
-                            Y = y,
-                            W = config.SpriteSize.W,
-                            H = config.SpriteSize.H
-                        }
-                    };
-                    referencedSprites.Add(referencedSprite.SpriteId, referencedSprite);
+                    count++;
                 }
+                else
+                {
+                    count = 0;
+                }
+                inputFileSpriteCounts[inputFile.FileId] = count;
 
-                animationSpriteIds.Add(referencedSprite.FileSpriteId);
+                referencedSprite = new ReferencedSprite()
+                {
+                    FileSpriteIndex = count,
+                    FileId = inputFile.FileId,
+                    Rect = region
+                };
+                referencedSprites.Add(spriteId, referencedSprite);
             }
+
+            animationSpriteIds.Add(referencedSprite.FileSpriteId);
         }
     }
 
@@ -126,14 +125,12 @@ var currentOutputSpriteCol = 0;
 
 foreach (var spriteGroup in referencedSprites.GroupBy(s => s.Value.FileId))
 {
-    if (!inputSpriteSheetCollection.TryGetValue(spriteGroup.Key, out var input))
+    if (!inputSpriteSheetCollection.TryGetValue(spriteGroup.Key, out var inputFile))
     {
         Console.Error.WriteLine($"error, referenced FileId '{spriteGroup.Key}' was not defined in the 'files' array.");
         Environment.ExitCode = -1;
         return;
     }
-
-    var (inputFile, image) = input;
 
     foreach (var referencedSprite in spriteGroup.Select(kvp => kvp.Value).OrderBy(s => s.FileSpriteIndex))
     {
@@ -142,28 +139,16 @@ foreach (var spriteGroup in referencedSprites.GroupBy(s => s.Value.FileId))
             // Add the frame to the output json
             pixiJsSpriteSheet.Frames.Add(referencedSprite.FileSpriteId, new FrameData()
             {
-                Frame = new Rect()
-                {
-                    X = currentOutputSpriteCol * referencedSprite.Rect.W,
-                    Y = currentOutputSpriteRow * referencedSprite.Rect.H,
-                    W = referencedSprite.Rect.W,
-                    H = referencedSprite.Rect.H,
-                },
-                SpriteSourceSize = new Rect()
-                {
-                    X = 0,
-                    Y = 0,
-                    W = referencedSprite.Rect.W,
-                    H = referencedSprite.Rect.H,
-                }
+                Frame = referencedSprite.Rect with { X = currentOutputSpriteCol * referencedSprite.Rect.W, Y = currentOutputSpriteRow * referencedSprite.Rect.H },
+                SpriteSourceSize = referencedSprite.Rect with { X = 0, Y = 0 }
             });
 
-            var sprite = image.Clone(new MagickGeometry(referencedSprite.Rect.X, referencedSprite.Rect.Y, referencedSprite.Rect.W, referencedSprite.Rect.H));
+            var sprite = inputFile.Image.Clone(new MagickGeometry(referencedSprite.Rect.X, referencedSprite.Rect.Y, referencedSprite.Rect.W, referencedSprite.Rect.H));
             sprites.Add(sprite);
         }
         catch
         {
-            Console.Error.WriteLine($"error extracting sprite '{referencedSprite.SpriteId}' / [{referencedSprite.Rect.X}, {referencedSprite.Rect.Y}, {referencedSprite.Rect.W}, {referencedSprite.Rect.H}] from sheet '{inputFile.FileId}' - '{inputFile.File}'");
+            Console.Error.WriteLine($"error extracting sprite [{referencedSprite.Rect.X}, {referencedSprite.Rect.Y}, {referencedSprite.Rect.W}, {referencedSprite.Rect.H}] from sheet '{inputFile.FileId}' - '{inputFile.File}'");
             Environment.ExitCode = -1;
             return;
         }
@@ -180,7 +165,7 @@ foreach (var spriteGroup in referencedSprites.GroupBy(s => s.Value.FileId))
     var blankSprites = config.OutputCols - (spriteGroup.Count() % config.OutputCols);
     for (var i = 0; i < blankSprites; i++)
     {
-        var blankSprite = new MagickImage(MagickColor.FromRgba(0,0,0,0), inputFile.SpriteSize.W, inputFile.SpriteSize.H);
+        var blankSprite = new MagickImage(MagickColor.FromRgba(0,0,0,0), config.SpriteSize.W, config.SpriteSize.H);
         sprites.Add(blankSprite);
 
         currentOutputSpriteCol++;

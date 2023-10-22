@@ -1,4 +1,6 @@
-﻿using System.Text.Json.Serialization;
+﻿using ImageMagick;
+using System.Text.Json.Serialization;
+using static System.Net.Mime.MediaTypeNames;
 
 public class InputFile
 {
@@ -8,9 +10,14 @@ public class InputFile
     [JsonPropertyName("file-id")]
     public required string FileId { get; set; }
 
-    [JsonPropertyName("sprite-size")]
-    public required Size SpriteSize { get; set; }
 
-    [JsonPropertyName("sprite-sheet-size")]
-    public required Size SpriteSheetSize { get; set; }
+    [JsonIgnore] 
+    public MagickImage Image { get; set; } = null!;
+
+    [JsonIgnore]
+    public Size SpriteSheetSize => new()
+    {
+        W = Image.Width,
+        H = Image.Height,
+    };
 }
